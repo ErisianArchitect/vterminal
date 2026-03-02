@@ -3,25 +3,21 @@ use crate::{Size, debug_assert_le_i32_max, pos::Pos};
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Rect {
-    pub start_row: u32,
-    pub end_row: u32,
-    pub start_col: u32,
-    pub end_col: u32,
+    pub start_row: u16,
+    pub end_row: u16,
+    pub start_col: u16,
+    pub end_col: u16,
 }
 
 impl Rect {
     #[must_use]
     #[inline(always)]
     pub const fn new(
-        start_row: u32,
-        end_row: u32,
-        start_col: u32,
-        end_col: u32,
+        start_row: u16,
+        end_row: u16,
+        start_col: u16,
+        end_col: u16,
     ) -> Self {
-        debug_assert_le_i32_max!(start_row);
-        debug_assert_le_i32_max!(start_col);
-        debug_assert_le_i32_max!(end_row);
-        debug_assert_le_i32_max!(end_col);
         Self {
             start_row,
             end_row,

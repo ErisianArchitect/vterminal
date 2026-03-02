@@ -80,7 +80,7 @@ static void dump_cell(const VTermScreenCell *cell, const VTermScreenCell *prevce
     case FORMAT_SGR:
       {
         // If all 7 attributes change, that means 7 SGRs max
-        // Each colour could consume up to 5 entries
+        // Each color could consume up to 5 entries
         int sgr[7 + 2*5]; int sgri = 0;
 
         if(!prevcell->attrs.bold && cell->attrs.bold)

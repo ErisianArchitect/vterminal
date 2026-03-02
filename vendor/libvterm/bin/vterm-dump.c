@@ -197,12 +197,12 @@ static VTermParserCallbacks parser_cbs = {
 
 int main(int argc, char *argv[])
 {
-  int use_colour = isatty(1);
+  int use_color = isatty(1);
 
   int opt;
   while((opt = getopt(argc, argv, "c")) != -1) {
     switch(opt) {
-      case 'c': use_colour = 1; break;
+      case 'c': use_color = 1; break;
     }
   }
 
@@ -219,7 +219,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  if(use_colour) {
+  if(use_color) {
     special_begin = "\x1b[7m{";
     special_end   = "}\x1b[m";
   }

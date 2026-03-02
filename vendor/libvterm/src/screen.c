@@ -214,10 +214,13 @@ static void sb_pushline_from_row(VTermScreen *screen, int row)
   (screen->callbacks->sb_pushline)(screen->cols, screen->sb_buffer, screen->cbdata);
 }
 
+// called by scrollrect()
 static int moverect_internal(VTermRect dest, VTermRect src, void *user)
 {
   VTermScreen *screen = user;
 
+  // NOTE: sb_pushline
+  // screen->callbacks->sb_pushline
   if(screen->callbacks && screen->callbacks->sb_pushline &&
      dest.start_row == 0 && dest.start_col == 0 &&        // starts top-left corner
      dest.end_col == screen->cols &&                      // full width
@@ -1157,7 +1160,7 @@ void vterm_screen_convert_color_to_rgb(const VTermScreen *screen, VTermColor *co
   vterm_state_convert_color_to_rgb(screen->state, col);
 }
 
-static void reset_default_colours(VTermScreen *screen, ScreenCell *buffer)
+static void reset_default_colors(VTermScreen *screen, ScreenCell *buffer)
 {
   for(int row = 0; row <= screen->rows - 1; row++)
     for(int col = 0; col <= screen->cols - 1; col++) {
@@ -1185,7 +1188,7 @@ void vterm_screen_set_default_colors(VTermScreen *screen, const VTermColor *defa
                         | VTERM_COLOR_DEFAULT_BG;
   }
 
-  reset_default_colours(screen, screen->buffers[0]);
+  reset_default_colors(screen, screen->buffers[0]);
   if(screen->buffers[1])
-    reset_default_colours(screen, screen->buffers[1]);
+    reset_default_colors(screen, screen->buffers[1]);
 }

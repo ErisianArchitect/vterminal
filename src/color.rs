@@ -1,3 +1,7 @@
+use std::mem::transmute;
+
+use crate::bindings;
+
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -48,102 +52,102 @@ impl ColorType {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Rgb {
-    pub red: u8,
-    pub green: u8,
-    pub blue: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RgbType {
-    pub color_type: ColorType,
-    pub rgb: Rgb,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct IndexedType {
-    pub color_type: ColorType,
-    pub index: u8,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-union ColorUnion {
-    pub color_type: ColorType,
-    pub rgb: RgbType,
-    pub indexed: IndexedType,
-}
-
-impl PartialEq<Self> for ColorUnion {
-    fn eq(&self, other: &Self) -> bool {
-        unsafe {
-            if self.color_type != other.color_type {
-                return false;
-            }
-            match self.color_type {
-                ColorType::Rgb => self.rgb.rgb == other.rgb.rgb,
-                ColorType::Indexed => self.indexed.index == other.indexed.index,
-                ColorType::DefaultFgRgb => self.rgb.rgb == other.rgb.rgb,
-                ColorType::DefaultFgIndexed => self.indexed.index == other.indexed.index,
-                ColorType::DefaultBgRgb => self.rgb.rgb == other.rgb.rgb,
-                ColorType::DefaultBgIndexed => self.indexed.index == other.indexed.index,
-            }
-        }
+impl Rgb {
+    #[must_use]
+    #[inline(always)]
+    pub const fn new(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b  }
     }
 }
 
-impl Eq for ColorUnion {}
-
-impl ::core::fmt::Debug for ColorUnion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        unsafe {
-            match self.color_type {
-                ColorType::Rgb => write!(f, "ColorUnion::Rgb({:?})", self.rgb),
-                ColorType::Indexed => write!(f, "ColorUnion::Indexed({:?})", self.indexed),
-                ColorType::DefaultFgRgb => write!(f, "ColorUnion::DefaultFgRgb({:?})", self.rgb),
-                ColorType::DefaultFgIndexed => write!(f, "ColorUnion::DefaultFgIndexed({:?})", self.indexed),
-                ColorType::DefaultBgRgb => write!(f, "ColorUnion::DefaultBgRgb({:?})", self.rgb),
-                ColorType::DefaultBgIndexed => write!(f, "ColorUnion::DefaultGbIndexed({:?})", self.indexed),
-            }
-        }
-    }
+#[repr(C, i8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Color {
+    Rgb(Rgb) = 0,
+    Indexed(u8) = 1,
+    DefaultFgRgb = 2,
+    DefaultFgIndexed = 3,
+    DefaultBgRgb = 4,
+    DefaultBgIndexed = 5,
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Color {
-    color_union: ColorUnion,
+#[repr(C, i8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ColorValue {
+    Rgb(Rgb) = 0,
+    Indexed(u8) = 1,
 }
 
 impl Color {
     #[must_use]
     #[inline(always)]
-    pub const fn rgb(red: u8, green: u8, blue: u8) -> Self {
-        Self {
-            color_union: ColorUnion {
-                rgb: RgbType {
-                    color_type: ColorType::Rgb,
-                    rgb: Rgb {
-                        red,
-                        green,
-                        blue
-                    }
-                }
-            }
-        }
+    pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
+        Self::Rgb(Rgb::new(r, g, b))
+    }
+    
+    #[must_use]
+    #[inline(always)]
+    pub const fn rgb_gray(gray: u8) -> Self {
+        Self::rgb(gray, gray, gray)
     }
     
     #[must_use]
     #[inline(always)]
     pub const fn indexed(index: u8) -> Self {
-        Self {
-            color_union: ColorUnion {
-                indexed: IndexedType {
-                    color_type: ColorType::Indexed,
-                    index,
-                }
-            }
-        }
+        Self::Indexed(index)
     }
+    
+    #[must_use]
+    #[inline(always)]
+    pub(crate) const fn from_bindings(vterm_color: bindings::VTermColor) -> Self {
+        unsafe { transmute(vterm_color) }
+    }
+    
+    #[must_use]
+    #[inline(always)]
+    pub(crate) const fn to_bindings(self) -> bindings::VTermColor {
+        unsafe { transmute(self) }
+    }
+    
+    #[must_use]
+    #[inline(always)]
+    pub(crate) const fn as_bound(&self) -> &bindings::VTermColor {
+        unsafe { transmute(self) }
+    }
+    
+    #[must_use]
+    #[inline(always)]
+    pub(crate) const fn as_bound_mut(&mut self) -> &mut bindings::VTermColor {
+        unsafe { transmute(self) }
+    }
+    
+    #[must_use]
+    #[inline(always)]
+    pub const fn is_rgb(self) -> bool {
+        matches!(self, Self::Rgb(_) | Self::DefaultFgRgb | Self::DefaultBgRgb)
+    }
+    
+    #[must_use]
+    #[inline(always)]
+    pub const fn is_indexed(self) -> bool {
+        matches!(self, Self::Indexed(_) | Self::DefaultFgIndexed | Self::DefaultBgIndexed)
+    }
+    
+    // #[must_use]
+    // #[inline]
+    // pub const fn value(self) -> ColorValue {
+    //     match self {
+    //         Color::Rgb(rgb) => ColorValue::Rgb(rgb),
+    //         Color::Indexed(index) => ColorValue::Indexed(index),
+    //         Color::DefaultFgRgb(rgb) => ColorValue::Rgb(rgb),
+    //         Color::DefaultFgIndexed(index) => ColorValue::Indexed(index),
+    //         Color::DefaultBgRgb(rgb) => ColorValue::Rgb(rgb),
+    //         Color::DefaultBgIndexed(index) => ColorValue::Indexed(index),
+    //     }
+    // }
 }

@@ -3,9 +3,13 @@ name = "vterminal"
 version = "0.1.0"
 edition = "2024"
 
+[profile.release]
+lto = true
+
 [dependencies]
 libc = "0.2.182"
 paste = "1.0.15"
 
 [build-dependencies]
+bindgen = "0.72.1"
 cc = "1.2.56"
