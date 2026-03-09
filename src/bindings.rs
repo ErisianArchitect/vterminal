@@ -2,7 +2,7 @@
 
 use std::mem::transmute;
 
-use crate::Pos;
+use crate::{Pos, StringFragment};
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 impl VTermColor {
@@ -41,5 +41,13 @@ impl VTermPos {
             row: pos.row as i32,
             col: pos.col as i32,
         }
+    }
+}
+
+impl VTermStringFragment {
+    #[must_use]
+    #[inline(always)]
+    pub fn unbind(&self) -> StringFragment<'_> {
+        StringFragment::from_vterm(self)
     }
 }

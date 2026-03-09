@@ -2,7 +2,9 @@ mod bindings;
 mod callbacks;
 mod cell;
 mod color;
+mod fragment;
 mod key;
+mod lowlevel;
 mod pos;
 mod prop;
 mod rect;
@@ -14,6 +16,7 @@ use std::{marker::PhantomData, mem::{MaybeUninit, transmute}, ptr::NonNull, sync
 use callbacks::*;
 pub use cell::*;
 pub use color::*;
+pub use fragment::*;
 pub use key::*;
 pub use pos::*;
 pub use prop::*;
@@ -77,6 +80,12 @@ pub struct VTerm {
 }
 
 impl VTerm {
+    #[must_use]
+    #[inline(always)]
+    fn vt(&self) -> *mut bindings::VTerm {
+        self.vt.as_ptr()
+    }
+    
     fn with_init(mut self) -> Self {
         // Set to UTF-8 mode for compatibility with Rust.
         unsafe { bindings::vterm_set_utf8(self.vt.as_ptr().cast(), 1); }
@@ -94,8 +103,8 @@ impl VTerm {
         // obtain_screen creates screen and state, but obtain_state only creates state.
         // Order: obtain_screen -> obtain_state
         // SAFETY: Since vt is non-null, these calls are guaranteed to succeed.
-        let screen = unsafe { NonNull::new_unchecked(bindings::vterm_obtain_screen(vt.as_ptr().cast())) };
-        let state = unsafe { NonNull::new_unchecked(bindings::vterm_obtain_state(vt.as_ptr().cast())) };
+        let screen = unsafe { NonNull::new_unchecked(bindings::vterm_obtain_screen(vt.as_ptr())) };
+        let state = unsafe { NonNull::new_unchecked(bindings::vterm_obtain_state(vt.as_ptr())) };
         Self {
             vt,
             screen,
@@ -107,13 +116,13 @@ impl VTerm {
     #[inline]
     pub fn get_size(&self) -> Size {
         let (mut rows, mut cols) = (0i32, 0i32);
-        unsafe { bindings::vterm_get_size(self.vt.as_ptr().cast(), &mut rows, &mut cols); }
+        unsafe { bindings::vterm_get_size(self.vt(), &mut rows, &mut cols); }
         Size { rows: rows as u16, cols: cols as u16 }
     }
     
     #[inline]
     pub fn set_size(&mut self, size: Size) {
-        unsafe { bindings::vterm_set_size(self.vt.as_ptr().cast(), size.rows as i32, size.cols as i32); }
+        unsafe { bindings::vterm_set_size(self.vt(), size.rows as i32, size.cols as i32); }
     }
     
     #[inline]
@@ -128,22 +137,22 @@ impl VTerm {
     #[inline]
     pub fn write_input(&mut self, bytes: &[u8]) -> usize {
         let bytes_ptr = bytes.as_ptr();
-        unsafe { bindings::vterm_input_write(self.vt.as_ptr().cast(), bytes_ptr.cast(), bytes.len()) }
+        unsafe { bindings::vterm_input_write(self.vt(), bytes_ptr.cast(), bytes.len()) }
     }
     
     pub fn paste(&mut self, content: &str) {
         unsafe {
-            bindings::vterm_keyboard_start_paste(self.vt.as_ptr().cast());
+            bindings::vterm_keyboard_start_paste(self.vt());
             for chr in content.chars() {
                 self.keyboard_char(chr, Modifier::NONE);
             }
-            bindings::vterm_keyboard_end_paste(self.vt.as_ptr().cast());
+            bindings::vterm_keyboard_end_paste(self.vt());
         }
     }
     
     #[inline]
     pub fn keyboard_char(&mut self, chr: char, modifier: Modifier) {
-        unsafe { bindings::vterm_keyboard_unichar(self.vt.as_ptr().cast(), chr as u32, ::core::mem::transmute(modifier)); }
+        unsafe { bindings::vterm_keyboard_unichar(self.vt(), chr as u32, ::core::mem::transmute(modifier)); }
     }
     
     #[inline]
@@ -159,23 +168,23 @@ impl VTerm {
     
     #[inline]
     pub fn mouse_move(&mut self, pos: Pos, modifier: Modifier) {
-        unsafe { bindings::vterm_mouse_move(self.vt.as_ptr().cast(), pos.row as i32, pos.col as i32, transmute(modifier)); }
+        unsafe { bindings::vterm_mouse_move(self.vt(), pos.row as i32, pos.col as i32, transmute(modifier)); }
     }
     
     #[inline]
     pub fn mouse_button(&mut self, button: i32, pressed: bool, modifier: Modifier) {
-        unsafe { bindings::vterm_mouse_button(self.vt.as_ptr().cast(), button, pressed, transmute(modifier)); }
+        unsafe { bindings::vterm_mouse_button(self.vt(), button, pressed, transmute(modifier)); }
     }
     
     #[inline]
     pub fn reset_screen(&mut self, hard: bool) {
-        unsafe { bindings::vterm_screen_reset(self.screen.as_ptr().cast(), cbool(hard)); }
+        unsafe { bindings::vterm_screen_reset(self.screen.as_ptr(), cbool(hard)); }
     }
     
     #[inline(always)]
     pub unsafe fn unsafe_read_cell_into(&self, pos: Pos, cell: *mut Cell) -> bool {
         from_cbool(unsafe { bindings::vterm_screen_get_cell(
-            self.screen.as_ptr().cast(),
+            self.screen.as_ptr(),
             bindings::VTermPos {
                 col: pos.col as i32,
                 row: pos.row as i32
@@ -203,6 +212,6 @@ impl VTerm {
 impl Drop for VTerm {
     #[inline]
     fn drop(&mut self) {
-        unsafe { bindings::vterm_free(self.vt.as_ptr().cast()); }
+        unsafe { bindings::vterm_free(self.vt()); }
     }
 }

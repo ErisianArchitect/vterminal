@@ -12,6 +12,33 @@ impl Modifier {
     pub const  CTRL: Self = Self(0x04);
     pub const   ALL: Self = Self(0x07);
     
+    #[must_use]
+    #[inline(always)]
+    pub const fn new() -> Self {
+        Self::NONE
+    }
+    
+    #[must_use]
+    #[inline(always)]
+    pub const fn shift(mut self) -> Self {
+        self.or_assign(Self::SHIFT);
+        self
+    }
+    
+    #[must_use]
+    #[inline(always)]
+    pub const fn alt(mut self) -> Self {
+        self.or_assign(Self::ALT);
+        self
+    }
+    
+    #[must_use]
+    #[inline(always)]
+    pub const fn ctrl(mut self) -> Self {
+        self.or_assign(Self::CTRL);
+        self
+    }
+    
     #[inline(always)]
     pub const fn or_assign(&mut self, modifier: Self) {
         self.0 |= modifier.0;
